@@ -10,25 +10,40 @@
 #define THROBBER_H_
 
 #include <stdio.h>
-#include <signal.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/prctl.h>
-#include <stdnoreturn.h>
+#include <pthread.h>
+#include <stdbool.h>
 
-unsigned _throbber_x, _throbber_y;
+struct _throb_args{
+	unsigned x,y;
+	const char* color;
+	bool stop;
+};
 
-noreturn static void _stop_throbber(int signo){
-	(void)signo;
-	const char *safe_exit = "\x1b[u\x1b[39;49m";
-	fprintf(stdout, "\x1b[s\x1b[%d;%dH", _throbber_x, _throbber_y);
-	fputs("  ", stdout);
-	fputs(safe_exit, stdout);
-	fflush(stdout);
-	exit(0);
+typedef struct{
+	pthread_t id;
+	struct _throb_args* args;
+}throbber_t;
+
+void* _throb(void*);
+
+throbber_t start_throbber(const unsigned x, const unsigned y, const char* color){
+	struct _throb_args* args = malloc(sizeof(struct _throb_args));
+	args->x = x;
+	args->y = y;
+	args->color = color;
+	args->stop = false;
+	throbber_t t;
+	t.args = args;
+	pthread_create(&t.id,NULL,_throb,args);
+	return t;
 }
 
-int start_throbber(const unsigned x, const unsigned y, const char *color){
+void* _throb(void* args){
+	struct _throb_args* targs = args;
+	unsigned x = targs->x;
+	unsigned y = targs->y;
+	const char* color = targs->color;
 	const char *frames[] = {
 		"⠯⠃",
 		"⠏⠇",
@@ -37,34 +52,32 @@ int start_throbber(const unsigned x, const unsigned y, const char *color){
 		"⠮⠇",
 		"⠧⠇",
 		"⠯⠆",
-		"⠯⠅",
-		
+		"⠯⠅"
 	};
 	const char *safe_exit = "\x1b[u\x1b[39;49m"; //pop cursor position and reset colors
-	if((x <= 0)||(y <= 0))return -1;
-	int child;
+	if((x <= 0)||(y <= 0))return NULL;
 	unsigned step = 0;
 	fflush(stdout);
-	if((child = fork())){
-		return child;
-	}else{
-		_throbber_x = x;
-		_throbber_y = y;
-		signal(SIGUSR1, _stop_throbber);
-		prctl(PR_SET_NAME, "throbber");
-		while(1){
-			fprintf(stdout, "\x1b[s\x1b[%d;%dH%s", x, y, color?color:""); //push and move cursor position
-			fputs(frames[++step %8], stdout);
-			fputs(safe_exit, stdout);
-			fflush(stdout); //prevents visual errors
-			usleep(100000L);
-		}
+	while(!targs->stop){
+		fprintf(stdout, "\x1b[s\x1b[%d;%dH%s", x, y, color?color:""); //push and move cursor position
+		fputs(frames[++step % 8], stdout);
+		fputs(safe_exit, stdout);
+		fflush(stdout); //prevents visual errors
+		usleep(100000L);
 	}
+	free(targs);
+	return NULL;
 }
 
-void stop_throbber(int throbber){
-	kill(throbber, SIGUSR1);
-	usleep(100L); //ensures the calling thread is delayed for the minimum time needed
+void stop_throbber(throbber_t t){
+	const char *safe_exit = "\x1b[u\x1b[39;49m";
+	t.args->stop = true;
+	fprintf(stdout, "\x1b[s\x1b[%d;%dH", t.args->x, t.args->y);
+	fputs("  ", stdout);
+	fputs(safe_exit, stdout);
+	fflush(stdout);
+	pthread_join(t.id,NULL);
+	usleep(1000L);
 	return;
 }
 

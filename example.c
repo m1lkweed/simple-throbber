@@ -45,12 +45,12 @@ int main(){
 	fputs("Waiting ", stdout);
 	get_pos(&x, &y);
 	puts("");
-	int throbber1 = start_throbber(x, y + 8, RED);
+	throbber_t throbber1 = start_throbber(x, y + 8, RED);
 	sleep(1);
 	fputs("Loading ", stdout);
 	get_pos(&x, &y);
 	puts("");
-	int throbber2 = start_throbber(x, y + 8, GREEN);
+	throbber_t throbber2 = start_throbber(x, y + 8, GREEN);
 	sleep(5);
 	stop_throbber(throbber2);
 	sleep(1);
