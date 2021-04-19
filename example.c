@@ -4,6 +4,7 @@
 
 #include "throbber.h"
 
+#define MAX_THROBBERS 20
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"
 
@@ -40,20 +41,26 @@ int get_pos(int *y, int *x){
 }
 
 int main(){
-	int x, y;
 	system("clear");
-	fputs("Waiting ", stdout);
+	throbber_t throbbers[MAX_THROBBERS] = {{0, NULL}};
+	int x, y;
+	fputs("Running: ", stdout);
+	fflush(stdout);
 	get_pos(&x, &y);
 	puts("");
-	throbber_t throbber1 = start_throbber(x, y + 8, RED);
-	sleep(1);
-	fputs("Loading ", stdout);
-	get_pos(&x, &y);
-	puts("");
-	throbber_t throbber2 = start_throbber(x, y + 8, GREEN);
-	sleep(5);
-	stop_throbber(throbber2);
-	sleep(1);
-	stop_throbber(throbber1);
+	throbbers[0] = start_throbber(x, y, RED);
+	size_t i;
+	for(i = 1; i < MAX_THROBBERS; ++i){
+		fprintf(stdout, "Throbber %d: ", i);
+		fflush(stdout);
+		get_pos(&x, &y);
+		puts("");
+		throbbers[i] = start_throbber(x, y, GREEN);
+		usleep(100000);
+	}
+	while(i--){
+		stop_throbber(throbbers[i]);
+		usleep(10000);
+	}
 	puts("Done!");
 }
