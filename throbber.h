@@ -17,6 +17,7 @@
 struct _throb_args{
 	unsigned x,y;
 	const char* color;
+	pthread_mutex_t lock;
 	bool stop;
 };
 
@@ -33,6 +34,10 @@ throbber_t start_throbber(const unsigned x, const unsigned y, const char* color)
 	args->y = y;
 	args->color = color;
 	args->stop = false;
+	if(pthread_mutex_init(&args->lock, NULL)){
+		puts("Throbber initialization failed");
+		exit(1);
+	}
 	throbber_t t;
 	t.args = args;
 	pthread_create(&t.id, NULL, _throb, args);
@@ -58,12 +63,15 @@ void* _throb(void* args){
 	if((x <= 0)||(y <= 0))return NULL;
 	unsigned step = 0;
 	fflush(stdout);
+	pthread_mutex_lock(&targs->lock);
 	while(!targs->stop){
+		pthread_mutex_unlock(&targs->lock);
 		fprintf(stdout, "\x1b[s\x1b[%d;%dH%s", x, y, color?color:""); //push and move cursor position
 		fputs(frames[++step % 8], stdout);
 		fputs(safe_exit, stdout);
 		fflush(stdout); //prevents visual errors
 		usleep(100000L);
+		pthread_mutex_lock(&targs->lock);
 	}
 	free(targs);
 	return NULL;
@@ -71,7 +79,9 @@ void* _throb(void* args){
 
 void stop_throbber(throbber_t t){
 	const char *safe_exit = "\x1b[u\x1b[39;49m";
+	pthread_mutex_lock(&t.args->lock);
 	t.args->stop = true;
+	pthread_mutex_unlock(&t.args->lock);
 	fprintf(stdout, "\x1b[s\x1b[%d;%dH", t.args->x, t.args->y);
 	fputs("  ", stdout);
 	fputs(safe_exit, stdout);
