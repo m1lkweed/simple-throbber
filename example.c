@@ -9,7 +9,7 @@
 #define GREEN "\x1b[32m"
 
 int get_pos(int *y, int *x){
-	char buf[30]={0};
+	char buf[30] = {0};
 	int ret, i, pow;
 	char ch;
 	*y = 0;
@@ -20,7 +20,7 @@ int get_pos(int *y, int *x){
 	term.c_lflag &= ~(ICANON|ECHO);
 	tcsetattr(0, TCSANOW, &term);
 	write(1, "\x1b[6n", 4);
-	for( i = 0, ch = 0; ch != 'R'; ++i){
+	for(i = 0, ch = 0; ch != 'R'; ++i){
 		ret = read(0, &ch, 1);
 		if(!ret){
 			tcsetattr(0, TCSANOW, &restore);
