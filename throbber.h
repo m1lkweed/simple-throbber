@@ -13,12 +13,13 @@
 #include <stdlib.h>
 #include <threads.h>
 #include <stdbool.h>
+#include <stdatomic.h>
+#include <unistd.h>
 
 struct _throb_args{
 	unsigned x,y;
 	const char *color;
-	mtx_t lock;
-	bool stop;
+	atomic_bool stop;
 };
 
 typedef struct{
@@ -29,19 +30,21 @@ typedef struct{
 int _throb(void*);
 
 throbber_t start_throbber(const unsigned x, const unsigned y, const char *color){
-	struct _throb_args *args = malloc(sizeof(struct _throb_args));
-	args->x = x;
-	args->y = y;
-	args->color = color;
-	args->stop = false;
-	if(mtx_init(&args->lock, mtx_plain) == thrd_error){
+	throbber_t t;
+	t.args = malloc(sizeof(*t.args));
+	if(!t.args){
 		fputs("Throbber initialization failed", stderr);
-		free(args);
 		return (throbber_t){-1, NULL};
 	}
-	throbber_t t;
-	t.args = args;
-	thrd_create(&t.id, _throb, args);
+	t.args->x = x;
+	t.args->y = y;
+	t.args->color = color;
+	t.args->stop = false;
+	if(thrd_create(&t.id, _throb, t.args) != thrd_success){
+		fputs("Throbber initialization failed", stderr);
+		free(t.args);
+		return (throbber_t){-1, NULL};
+	}
 	return t;
 }
 
@@ -64,13 +67,10 @@ int _throb(void *args){
 	if((x <= 0)||(y <= 0))return 0;
 	unsigned step = 0;
 	fflush(stdout);
-	mtx_lock(&targs->lock);
 	do{
-		mtx_unlock(&targs->lock);
 		fprintf(stdout, "\x1b[s\x1b[%d;%dH%s%s%s", x, y, color?color:"", frames[++step % 8], safe_exit); //push and move cursor position, print throbber, then pop and reset colors
 		fflush(stdout);
 		usleep(100000L);
-		mtx_lock(&targs->lock);
 	}while(!targs->stop);
 	free(targs);
 	return 0;
@@ -79,11 +79,9 @@ int _throb(void *args){
 void stop_throbber(throbber_t t){
 	if(t.id == -1)
 		return;
-	mtx_lock(&t.args->lock);
 	t.args->stop = true;
 	fprintf(stdout, "\x1b[s\x1b[%d;%dH  \x1b[u\x1b[39;49m", t.args->x, t.args->y); // like the one in _throb() but using spaces to clear the throbber
 	fflush(stdout);
-	mtx_unlock(&t.args->lock);
 	thrd_join(t.id, NULL);
 	return;
 }
