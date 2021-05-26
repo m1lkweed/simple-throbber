@@ -11,10 +11,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <threads.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include <unistd.h>
 
 struct _throb_args{
 	unsigned x,y;
@@ -32,10 +32,8 @@ int _throb(void*);
 throbber_t start_throbber(const unsigned x, const unsigned y, const char *color){
 	throbber_t t;
 	t.args = malloc(sizeof(*t.args));
-	if(!t.args){
-		fputs("Throbber initialization failed", stderr);
+	if(!t.args)
 		return (throbber_t){-1, NULL};
-	}
 	t.args->x = x;
 	t.args->y = y;
 	t.args->color = color;
