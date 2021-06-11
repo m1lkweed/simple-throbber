@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <threads.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdatomic.h>
 
@@ -23,11 +23,11 @@ struct _throb_args{
 };
 
 typedef struct{
-	thrd_t id;
+	pthread_t id;
 	struct _throb_args *args;
 }throbber_t;
 
-int _throb(void*);
+void *_throb(void*);
 
 throbber_t start_throbber(const unsigned x, const unsigned y, const char *color){
 	throbber_t t;
@@ -38,15 +38,15 @@ throbber_t start_throbber(const unsigned x, const unsigned y, const char *color)
 	t.args->y = y;
 	t.args->color = color;
 	t.args->stop = false;
-	if(thrd_create(&t.id, _throb, t.args) != thrd_success){
+	if(pthread_create(&t.id, NULL, _throb, t.args) != 0){
 		fputs("Throbber initialization failed", stderr);
 		free(t.args);
-		return (throbber_t){-1, NULL};
+		return (throbber_t){(pthread_t)-1, NULL};
 	}
 	return t;
 }
 
-int _throb(void *args){
+void *_throb(void *args){
 	struct _throb_args *targs = args;
 	unsigned x = targs->x;
 	unsigned y = targs->y;
@@ -71,16 +71,16 @@ int _throb(void *args){
 		usleep(100000L);
 	}while(!targs->stop);
 	free(targs);
-	return 0;
+	return NULL;
 }
 
 void stop_throbber(throbber_t t){
-	if(t.id == -1)
+	if(t.id == (pthread_t)-1)
 		return;
 	t.args->stop = true;
-	fprintf(stdout, "\x1b[s\x1b[%d;%dH  \x1b[u\x1b[39;49m", t.args->x, t.args->y); // like the one in _throb() but using spaces to clear the throbber
+	fprintf(stdout, "\x1b[s\x1b[%d;%dH  \x1b[u\x1b[39;49m", t.args->x, t.args->y); //like the one in _throb() but using spaces to clear the throbber
 	fflush(stdout);
-	thrd_join(t.id, NULL);
+	pthread_join(t.id, NULL);
 	return;
 }
 
