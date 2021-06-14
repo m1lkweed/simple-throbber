@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <termios.h>
 
+#define THROBBER_IMPLEMENTATION
 #include "throbber.h"
 
 #define MAX_THROBBERS 40
