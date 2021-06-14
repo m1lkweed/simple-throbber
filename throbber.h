@@ -27,6 +27,11 @@ typedef struct{
 	struct _throb_args *args;
 }throbber_t;
 
+throbber_t start_throbber(const unsigned x, const unsigned y, const char *color);
+void stop_throbber(throbber_t t);
+
+#ifdef THROBBER_IMPLEMENTATION
+
 void *_throb(void*);
 
 throbber_t start_throbber(const unsigned x, const unsigned y, const char *color){
@@ -84,4 +89,5 @@ void stop_throbber(throbber_t t){
 	return;
 }
 
+#endif //THROBBER_IMPLEMENTATION
 #endif //THROBBER_H_
